@@ -23,23 +23,53 @@ import glob
 
 ###########################################################
 ### df= PrepSPY(dtArg)
+import pandas as pd
+import numpy as np
+import glob
+
 def PrepSPY(dtArg):
     """
     Purpose:
-        Read the data on the symbols of this group
-
-    Inputs:
-        dtArg   dictionary, settings
-
-    Return value:
-        df      dataframe, prices
+        Read and prepare the data for a specific group of symbols from wide-format Excel files.
     """
-    sGlob= f'data/Price*_all_*_i0.xlsx'
-    asF= np.sort(glob.glob(sGlob))
+    sGlob = f'data/Price*_all_*_i0.xlsx'
+    asF = np.sort(glob.glob(sGlob))
 
-    # Read the data, best to limit to only the symbols of interest
-    # ... fill in code
+    # Get the list of symbol columns we need to keep
+    symbols_to_keep = dtArg['symbols'].split() # e.g., ['SPY5.L', 'SPY5z.CHIX', 'SPY5.P']
+    
+    # Also specify the column to use for the timestamp
+    time_column = 'DateTime'
+    
+    list_of_monthly_dfs = []
 
+    # Loop through each monthly file
+    for filename in asF:
+        print(f'Processing {filename}...')
+        
+        # 1. Read the entire Excel file
+        temp_df = pd.read_excel(filename)
+        
+        # 2. Select only the necessary columns: the timestamp and your 3 symbols
+        # We create a list of all columns we are interested in
+        columns_to_select = [time_column] + symbols_to_keep
+        subset_df = temp_df[columns_to_select]
+        
+        # 3. Reshape the data from "wide" to "long" format using melt()
+        # This will create a 'symbol' column and a 'price' column, which is much more flexible.
+        long_df = subset_df.melt(id_vars=[time_column], 
+                                 var_name='symbol', 
+                                 value_name='price')
+        
+        list_of_monthly_dfs.append(long_df)
+
+    # 4. Combine all the monthly dataframes into one
+    df = pd.concat(list_of_monthly_dfs, ignore_index=True)
+    
+    # 5. Final cleanup: set the timestamp as the index and drop any rows with missing prices
+    df = df.set_index(time_column)
+    df = df.dropna(subset=['price'])
+    
     return df
 
 ###########################################################
@@ -47,8 +77,8 @@ def PrepSPY(dtArg):
 def main():
     # Magic numbers
     dtArg= {
-        'symbols': 'SPX5.L SPY5.P SPY5.MIL',        # Change list of symbols to the symbols of your group
-        'group': 'g0'
+        'symbols': 'SPY5.L SPY5z.CHIX SPY5.P',        # Change list of symbols to the symbols of your group
+        'group': 'g21'
     }
 
     # Initialisation
@@ -58,11 +88,11 @@ def main():
     df= PrepSPY(dtArg)
 
     # Output
-    sOut= f'output/sp_{dtArg["group"]}.csv.gz'
+    sOut= f'output/sp_{dtArg["group"]}.csv'
     df.to_csv(sOut)
 
     print (f'See {df.shape} observations in {sOut}')
-    print ('Beginning of dataset:')
+    print ('Beginning of filename:')
     print (df.head())
 
 ###########################################################
