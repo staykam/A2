@@ -36,8 +36,7 @@ def PrepSPY(dtArg):
     asF = np.sort(glob.glob(sGlob))
 
     # Get the list of symbol columns we need to keep
-    symbols_to_keep = dtArg['symbols'].split() # e.g., ['SPY5.L', 'SPY5z.CHIX', 'SPY5.P']
-    
+    symbols_to_keep = dtArg['symbols'].split()    
     # Also specify the column to use for the timestamp
     time_column = 'DateTime'
     
@@ -46,28 +45,22 @@ def PrepSPY(dtArg):
     # Loop through each monthly file
     for filename in asF:
         print(f'Processing {filename}...')
-        
-        # 1. Read the entire Excel file
         temp_df = pd.read_excel(filename)
         
-        # 2. Select only the necessary columns: the timestamp and your 3 symbols
         # We create a list of all columns we are interested in
         columns_to_select = [time_column] + symbols_to_keep
         subset_df = temp_df[columns_to_select]
         
-        # 3. Reshape the data from "wide" to "long" format using melt()
-        # This will create a 'symbol' column and a 'price' column, which is much more flexible.
+        # Reshape data from wide to long format to use filtering more easily
+        # Create a Price and Symbol column
         long_df = subset_df.melt(id_vars=[time_column], 
                                  var_name='symbol', 
                                  value_name='price')
         
         list_of_monthly_dfs.append(long_df)
-
-    # 4. Combine all the monthly dataframes into one
+    # Combine dfs
     df = pd.concat(list_of_monthly_dfs, ignore_index=True)
-    
-    # 5. Final cleanup: set the timestamp as the index and drop any rows with missing prices
-    df = df.set_index(time_column)
+    #df = df.set_index(time_column)
     df = df.dropna(subset=['price'])
     
     return df
